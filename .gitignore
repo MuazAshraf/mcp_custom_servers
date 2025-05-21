@@ -1,0 +1,53 @@
+# Python related
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+.pytest_cache/
+*.log
+*.pot
+*.pyc
+
+# Virtual Environment
+.venv/
+venv/
+ENV/
+env/
+
+# Environment variables and secrets
+.env
+.env.local
+.env.*
+
+# IDE specific files
+.idea/
+.vscode/
+*.swp
+*.swo
+.DS_Store
+
+# Distribution / packaging
+dist/
+build/
+*.egg-info/
+eggs/
+*.egg
+
+# Jupyter Notebook
+.ipynb_checkpoints
+
+# API keys and credentials
+*.pem
+*key.json
+*credential*.json
+
+# Logs
+logs/
+*.log
+
+# Local development
+.coverage
+htmlcov/
+coverage/
+.mypy_cache/
