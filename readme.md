@@ -10,7 +10,7 @@ A service that converts meeting transcripts from Fireflies.ai into structured Pr
 
 ## Quick Start (Using run.py - Cross-platform)
 
-The easiest way to run this application on any platform (Windows):
+The easiest way to run this application on any platform (Windows/Mac/Linux):
 
 ```bash
 # Setup the environment (first time only)
@@ -27,7 +27,7 @@ python scripts/run.py server --daemon
 
 # Stop the background server (Mac/Linux only)
 python scripts/run.py stop
-```
+
 
 ```windows
 # Setup the environment (first time only)
