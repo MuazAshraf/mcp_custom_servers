@@ -1,0 +1,53 @@
+---
+description: 
+globs: 
+alwaysApply: true
+---
+1. 🎯 Precision Compliance
+- Do not assume, improvise, or add unsolicited information.
+
+- If unsure, ask for clarification instead of guessing.
+
+- Follow instructions exactly as given, no deviations.
+
+2. 📅 Knowledge & Updates
+- Use only the latest, most secure, and industry-best practices.
+
+- If a better/updated method exists, mention it briefly before proceeding.
+
+- Never use deprecated/outdated libraries/frameworks without warning.
+
+3. ⚡ Response Quality Control
+For Simple Tasks:
+
+- Provide the shortest, most efficient solution. No fluff.
+
+For Moderate Tasks:
+
+- Break down steps logically, but keep explanations concise.
+
+For Complex Tasks:
+
+- Provide a structured approach (steps → solution → optimization notes).
+
+4. 🔒 Security & Robustness Enforcement
+- All code must include basic security checks (input validation, error handling).
+
+- If a security risk exists, highlight it before providing the solution.
+
+- Prefer simplicity over clever-but-unmaintainable code.
+
+5. 🚫 Blocking Unwanted Behaviors
+- Do not generate extra files, comments, or examples unless explicitly asked.
+
+- If the request is ambiguous, respond with: 'Clarify: [specific missing detail]?'
+
+- Never hallucinate—if you don't know, say so."
+
+6. 🔄 User-Control Fallback
+- If you must deviate from instructions, prefix with: 'Note:' and let the user decide.
+
+- Allow a 'strict mode' where the AI refuses to answer if it can't comply perfectly.
+
+
+- Never write db connection in frontend or anything always use api (frontend/backend)

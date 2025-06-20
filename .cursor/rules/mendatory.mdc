@@ -1,0 +1,53 @@
+---
+description: 
+globs: 
+alwaysApply: true
+---
+## Point 1 - Before Creating Porject
+1. Before Creating a Project ALWAYS AND MUST do the following
+- Remember user to create Virtual enviroment when doing python project python -m venv venv
+- For Node projects Create node modules, package.json, package.json-lock by first do -> npm init -y.
+- For Laravel Download Herd from herd.laravel.com for macOS or Windows. Verify installation by: 
+    php --version
+    composer --version
+    laravel --version
+
+- Create .env file in every stack 
+- Create .gitgnore file in every project and stack must add these below into .gitignore file:
+    venv
+    .venv
+    node_modules/
+    .env
+    server/.env
+    client/.env
+    client/build/
+    *.log
+
+- ALWAYS create Requirements.txt file after installing dependencies pip > freeze requirements.txt
+- Create a readme file, The structure of the file will be:
+
+  - Python virtual environment version using
+
+  - How to start and run the project
+
+## Point 2 - Clarify yourself and user
+2. If user's mind is not clear in requirement then it is your DUTY to First understand what user's needs fully For example if user says "I want a login/signup page, then you don't have to give him code right away first you need to ask these questions
+
+- In which language you need your login/signup page (Python, laravel, node)
+
+- What feilds do you need? 
+
+- Do you need proper validation and verification?
+
+- Always be at the right track do not give extra files or complicate things. 
+
+- If the project is small use the monolithic approach BUT if the projet is large, important and complex use microservices approach according to its stack.
+
+# Note: Only then you have to start working on the project and make sure in every project you create above file mentioned in point 1
+
+
+
+
+
+
+

@@ -10,7 +10,6 @@ mcp = FastMCP("PRDGenerator", timeout=120000)
 OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
 FIREFLIES_API_KEY = os.getenv("FIREFLIES_API_KEY")
 client = OpenAI(api_key=OPENAI_API_KEY)
-print("OPENAI_API_KEY:", OPENAI_API_KEY)
 API_ENDPOINT = "https://api.fireflies.ai/graphql"
 API_KEY = FIREFLIES_API_KEY
 headers = {
