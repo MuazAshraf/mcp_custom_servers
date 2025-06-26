@@ -457,5 +457,5 @@ async def _get_repository_context(owner: str, repo: str) -> dict:
         logger.error(f"Error getting repository context: {e}")
         return {"error": f"Failed to get repository context: {str(e)}"}
 
-# This server is now mounted in main.py FastAPI hub
-# Individual server mode is disabled in favor of FastAPI mounting
+if __name__ == "__main__":
+    mcp.run(transport="streamable-http")

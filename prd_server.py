@@ -146,6 +146,5 @@ def analyze_and_generate_prd(transcript_text: str) -> dict:
     
     return response.choices[0].message.content
     
-
-# This server is now mounted in main.py FastAPI hub
-# Individual server mode is disabled in favor of FastAPI mounting
+if __name__ == "__main__":
+    mcp.run(transport="streamable-http")

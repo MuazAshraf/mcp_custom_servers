@@ -7,7 +7,7 @@ from typing import Dict, List, Optional
 load_dotenv('.env')
 
 # Initialize the MCP server with stateless HTTP for FastAPI mounting
-mcp = FastMCP("FirefliesServer", timeout=120000, stateless_http=True)
+mcp = FastMCP("FirefliesServer", stateless_http=True)
 FIREFLIES_API_KEY = os.getenv("FIREFLIES_API_KEY")
 API_ENDPOINT = "https://api.fireflies.ai/graphql"
 
@@ -485,5 +485,6 @@ def get_team_analytics_simple() -> Dict:
     """
     return fireflies_request(query)
 
-# This server is now mounted in main.py FastAPI hub
-# Individual server mode is disabled in favor of FastAPI mounting
+
+if __name__ == "__main__":
+    mcp.run(transport="streamable-http")
