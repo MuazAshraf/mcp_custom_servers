@@ -458,4 +458,7 @@ async def _get_repository_context(owner: str, repo: str) -> dict:
         return {"error": f"Failed to get repository context: {str(e)}"}
 
 if __name__ == "__main__":
-    mcp.run() 
+    import os
+    host = os.getenv('MCP_HOST', '0.0.0.0')  # Listen on all interfaces
+    port = int(os.getenv('MCP_PORT', 8003))  # Different port for each
+    mcp.run(host=host, port=port)

@@ -487,4 +487,7 @@ def get_team_analytics_simple() -> Dict:
 
 # Run the server
 if __name__ == "__main__":
-    mcp.run()
+    import os
+    host = os.getenv('MCP_HOST', '0.0.0.0')  # Listen on all interfaces
+    port = int(os.getenv('MCP_PORT', 8002))  # Different port for each
+    mcp.run(host=host, port=port)

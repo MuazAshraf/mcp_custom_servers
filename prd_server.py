@@ -147,4 +147,8 @@ def analyze_and_generate_prd(transcript_text: str) -> dict:
     return response.choices[0].message.content
     
 
-
+if __name__ == "__main__":
+    import os
+    host = os.getenv('MCP_HOST', '0.0.0.0')  # Listen on all interfaces
+    port = int(os.getenv('MCP_PORT', 8004))  # Different port for each
+    mcp.run(host=host, port=port)
