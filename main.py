@@ -40,9 +40,9 @@ async def root():
     return {
         "message": "MCP Servers Hub is running",
         "servers": {
-            "fireflies": "http://YOUR-SERVER-IP:8000/fireflies/mcp/",
-            "github": "http://YOUR-SERVER-IP:8000/github/mcp/",
-            "prd": "http://YOUR-SERVER-IP:8000/prd/mcp/"
+            "fireflies": "http://198.199.82.44:8000/fireflies/mcp/",
+            "github": "http://198.199.82.44:8000/github/mcp/",
+            "prd": "http://198.199.82.44:8000/prd/mcp/"
         },
         "status": "active"
     }
