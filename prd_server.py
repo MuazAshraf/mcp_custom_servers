@@ -5,8 +5,8 @@ from openai import OpenAI
 from dotenv import load_dotenv
 load_dotenv('.env')
 
-# Initialize the MCP server
-mcp = FastMCP("PRDGenerator", timeout=120000)
+# Initialize the MCP server with stateless HTTP for FastAPI mounting
+mcp = FastMCP("PRDGenerator", timeout=120000, stateless_http=True)
 OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
 FIREFLIES_API_KEY = os.getenv("FIREFLIES_API_KEY")
 client = OpenAI(api_key=OPENAI_API_KEY)
@@ -147,8 +147,5 @@ def analyze_and_generate_prd(transcript_text: str) -> dict:
     return response.choices[0].message.content
     
 
-if __name__ == "__main__":
-    import os
-    host = os.getenv('MCP_HOST', '0.0.0.0')
-    port = int(os.getenv('MCP_PORT', 8002))
-    mcp.run(transport="http", host=host, port=port, path="/mcp")
+# This server is now mounted in main.py FastAPI hub
+# Individual server mode is disabled in favor of FastAPI mounting

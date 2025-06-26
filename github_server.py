@@ -34,8 +34,8 @@ if not GITHUB_TOKEN:
     raise ValueError("GITHUB_TOKEN environment variable is required")
 OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
 
-# Create FastMCP server
-mcp = FastMCP("github-mcp")
+# Create FastMCP server with stateless HTTP for FastAPI mounting
+mcp = FastMCP("github-mcp", stateless_http=True)
 
 async def get_github_session():
     """Get or create GitHub API session"""
@@ -457,8 +457,5 @@ async def _get_repository_context(owner: str, repo: str) -> dict:
         logger.error(f"Error getting repository context: {e}")
         return {"error": f"Failed to get repository context: {str(e)}"}
 
-if __name__ == "__main__":
-    import os
-    host = os.getenv('MCP_HOST', '0.0.0.0')  # Listen on all interfaces
-    port = int(os.getenv('MCP_PORT', 8003))  # Different port for each
-    mcp.run(host=host, port=port)
+# This server is now mounted in main.py FastAPI hub
+# Individual server mode is disabled in favor of FastAPI mounting
