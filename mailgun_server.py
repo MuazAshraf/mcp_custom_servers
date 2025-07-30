@@ -19,7 +19,7 @@ logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 # Initialize FastMCP server
-mcp = FastMCP("mailgun-multi-account", version="1.0.0")
+mcp = FastMCP("mailgun-multi-account", stateless_http=True)
 
 # Global state for accounts
 ACCOUNTS: Dict[str, Dict[str, str]] = {}
@@ -292,12 +292,4 @@ async def get_events(
 
 
 if __name__ == "__main__":
-    # For testing locally
-    import asyncio
-    from mcp.server.stdio import stdio_server
-    
-    async def main():
-        async with stdio_server() as (read_stream, write_stream):
-            await mcp.run(read_stream, write_stream)
-    
-    asyncio.run(main())
+    mcp.run(transport="streamable-http")
