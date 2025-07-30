@@ -9,10 +9,14 @@ import base64
 import logging
 from typing import Dict, Any, Optional, List
 import httpx
+from dotenv import load_dotenv
 
 from mcp import ClientSession, server
 from mcp.server.fastmcp import FastMCP
 from mcp.types import TextContent, Tool
+
+# Load environment variables from .env file
+load_dotenv('.env')
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
