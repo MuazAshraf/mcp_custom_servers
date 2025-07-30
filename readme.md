@@ -28,8 +28,7 @@ A collection of Model Context Protocol (MCP) servers for various integrations.
    OPENAI_API_KEY=your_openai_api_key
    
    # Vimeo API
-   ACCESS_TOKEN=your_vimeo_access_token
-   AUTHORIZATION_TOKEN=your_vimeo_authorization_token
+   VIMEO_ACCESS_TOKEN=your_vimeo_personal_access_token
    ```
 
 5. The `.gitignore` file should already include `.env`, `venv`, `__pycache__/`

@@ -14,18 +14,19 @@ logger = logging.getLogger("vimeo-mcp-server")
 mcp = FastMCP("VimeoServer", stateless_http=True)
 
 # Vimeo configuration
+# Use VIMEO_API_KEY for clarity - this should be your Vimeo personal access token
+VIMEO_API_KEY = os.getenv("VIMEO_API_KEY")
 ACCESS_TOKEN = os.getenv("ACCESS_TOKEN")
-AUTHORIZATION_TOKEN = os.getenv("AUTHORIZATION_TOKEN")
 
-if not ACCESS_TOKEN or not AUTHORIZATION_TOKEN:
-    raise ValueError("ACCESS_TOKEN and AUTHORIZATION_TOKEN environment variables are required")
+if not VIMEO_API_KEY:
+    raise ValueError("VIMEO_API_KEY environment variable is required")
 
 VIMEO_API_BASE = "https://api.vimeo.com"
 
 # Headers for Vimeo API requests
 def get_headers():
     return {
-        "Authorization": f"Bearer {AUTHORIZATION_TOKEN}",
+        "Authorization": f"Bearer {ACCESS_TOKEN}",
         "Content-Type": "application/json",
         "Accept": "application/vnd.vimeo.*+json;version=3.4"
     }
@@ -108,7 +109,7 @@ def upload_video_tus(file_path: str, title: str = "", description: str = "", pri
                 data = f.read(chunk_size)
                 
                 patch_headers = {
-                    "Authorization": f"Bearer {AUTHORIZATION_TOKEN}",
+                    "Authorization": f"Bearer {ACCESS_TOKEN}",
                     "Tus-Resumable": "1.0.0",
                     "Upload-Offset": str(offset),
                     "Content-Type": "application/offset+octet-stream"
@@ -125,7 +126,7 @@ def upload_video_tus(file_path: str, title: str = "", description: str = "", pri
         # Verify upload completion
         head_headers = {
             "Tus-Resumable": "1.0.0",
-            "Authorization": f"Bearer {AUTHORIZATION_TOKEN}"
+            "Authorization": f"Bearer {ACCESS_TOKEN}"
         }
         
         response = requests.head(upload_link, headers=head_headers)
@@ -475,6 +476,41 @@ def get_folder_videos(folder_id: str, page: int = 1, per_page: int = 25) -> Dict
         }
     
     return response
+
+# Test function to check API key
+@mcp.tool()
+def test_vimeo_connection() -> Dict:
+    """
+    Test if the Vimeo API key is working by making a simple request
+    
+    Returns:
+        Connection test result
+    """
+    try:
+        # Test with a simple user info request
+        response = vimeo_request("GET", "/me")
+        
+        if "error" in response:
+            return {
+                "success": False,
+                "error": response["error"],
+                "suggestion": "Check your VIMEO_API_KEY and ensure it has proper scopes (public, private, edit, upload)"
+            }
+        
+        return {
+            "success": True,
+            "user_name": response.get("name", "Unknown"),
+            "account_type": response.get("account", "Unknown"),
+            "message": "Vimeo API connection successful!",
+            "available_scopes": response.get("metadata", {}).get("connections", {}).keys() if response.get("metadata") else []
+        }
+        
+    except Exception as e:
+        return {
+            "success": False,
+            "error": f"Connection test failed: {str(e)}",
+            "suggestion": "Verify your VIMEO_API_KEY is correctly set in .env file"
+        }
 
 if __name__ == "__main__":
     mcp.run(transport="streamable-http")
