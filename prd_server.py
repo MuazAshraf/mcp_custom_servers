@@ -119,18 +119,83 @@ def analyze_and_generate_prd(transcript_text: str) -> dict:
     prompt = f"""
     You are a helpful assistant that generates a Product Requirements Document (PRD) from a transcript.
     
-    Please structure the PRD with the following sections:
-    
-    1. Introduction
-    2. Goals
-    3. Target Users
-    4. User Stories
-    5. Functional Requirements
-    6. Non-Functional Requirements
-    7. Technical Specifications
-    8. Success Metrics
-    9. Future Considerations (Out of Scope for V1)
-    10. Risks and Assumptions
+    Follow this EXACT structure with EXACT Headings for every PRD:
+    1. Title & Metadata
+    - Title: Clear, concise (e.g. "AI-Powered Resume Analyzer v1.0")
+    - Author: Name, email
+    - Date Created / Last Updated
+    - Status: Draft / In Review / Final
+    - Version: v0.1, v1.0, etc.
+
+    2. Executive Summary
+    - One-paragraph overview of the product or feature
+    - Why are we building this?
+    - Who is it for?
+    - Example: “We're building an AI-powered resume analyzer to help job seekers optimize their resumes using real-time feedback.”
+
+    3. Goals & Objectives
+    - Primary Goal
+    - Secondary Goals (if any)
+    - Non-goals (what is out of scope)
+
+    4. Problem Statement
+    - What is the problem we're solving?
+    - What pain points are we addressing?
+
+    5. Success Metrics (KPIs)
+    - Quantifiable results that define success
+    - e.g. “90% of users complete resume analysis in under 2 minutes”
+
+    6. Target Audience / Personas
+    - Who are the users?
+    - What are their needs, behaviors, and pain points?
+
+    7. User Stories or Use Cases
+    Format:
+    - As a [user], I want to [do something], so that [benefit]
+    - Example:
+    As a job seeker, I want to upload my resume and receive improvement suggestions so that I can get more interview calls.
+
+    8. Functional Requirements
+    - List of specific features or behaviors:
+    - Upload resume (PDF, DOCX)
+    - Analyze text content with GPT
+    - Highlight weaknesses and suggestions
+    - Download improved resume
+
+    9. Non-Functional Requirements
+    - Performance: Response in < 3 sec
+    - Security: GDPR-compliant
+    - Scalability, Localization, Accessibility, etc.
+
+    10. Wireframes / UI Mockups
+    Include:
+    - Landing Page
+    - Upload Section
+    - Results Page
+    - Use Figma links, images, or embeds.
+
+    11. Technical Considerations
+    Tech stack
+    - APIs to be used (e.g., OpenAI, Pinecone)
+    - Integrations
+    - Constraints (e.g., browser only, no mobile support)
+
+    12. Risks & Assumptions
+    - What are we assuming?
+    - What could go wrong?
+
+    13. Timeline / Milestones
+    - Design: DD/MM – DD/MM
+    - Development: DD/MM – DD/MM
+    - Testing: DD/MM – DD/MM
+    - Launch: DD/MM
+
+    14. Appendices (Optional)
+    - Links to research
+    - References
+    - Meeting notes
+    - Competitive analysis
 
     Here is the transcript text:
     {transcript_text}
