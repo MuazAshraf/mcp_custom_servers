@@ -14,12 +14,12 @@ app = FastAPI()
 async def health_check():
     return {"status": "healthy", "message": "MCP Hub is running"}
 
-# Mount the MCP servers directly - they handle their own initialization
-app.mount("/fireflies", fireflies_mcp.streamable_http_app())
-app.mount("/github", github_mcp.streamable_http_app())
-app.mount("/prd", prd_mcp.streamable_http_app())
-app.mount("/vimeo", vimeo_mcp.streamable_http_app())
-app.mount("/mailgun", mailgun_mcp.streamable_http_app())
+# Mount the MCP servers with proxy mounting to ensure proper lifespan execution
+app.mount("/fireflies", fireflies_mcp.streamable_http_app(as_proxy=True))
+app.mount("/github", github_mcp.streamable_http_app(as_proxy=True))
+app.mount("/prd", prd_mcp.streamable_http_app(as_proxy=True))
+app.mount("/vimeo", vimeo_mcp.streamable_http_app(as_proxy=True))
+app.mount("/mailgun", mailgun_mcp.streamable_http_app(as_proxy=True))
 
 PORT = int(os.environ.get("PORT", 8000))
 
