@@ -184,13 +184,15 @@ async def send_email(
     }
     
     # Add optional fields
-    if html:
-        email_data['html'] = html
+    # if html:
+    #     email_data['html'] = html
     
     if from_email:
         email_data['from'] = from_email
     else:
-        email_data['from'] = f"noreply@{domain}"
+        # Use the domain name as the local part for the default email
+        domain_name = domain.split('.')[0]  # Gets 'projectwe' from 'projectwe.com'
+        email_data['from'] = f"{domain_name}@{domain}"
     
     # Send email
     result = await make_mailgun_request(
