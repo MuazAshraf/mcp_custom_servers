@@ -89,11 +89,11 @@ Send an email using the current Mailgun account.
 {
   "tool_name": "send_email",
   "arguments": {
-    "to": "recipient@example.com",
+    "to": "muazashraf456@gmail.com",
     "subject": "Test Email",
     "text": "This is a plain text email.",
-    "html": "<h1>Test Email</h1><p>This is an HTML email.</p>",
-    "from_email": "sender@projectwe.com"
+    "html": "<h1>Test Email</h1><p>This is an HTML email.</p> OPTIONAL PARAM", 
+    "from_email": "projectwe@projectwe.com"
   }
 }
 ```
