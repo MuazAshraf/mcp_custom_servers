@@ -5,21 +5,34 @@ from prd_server import mcp as prd_mcp
 from vimeo_server import mcp as vimeo_mcp
 from mailgun_server import mcp as mailgun_mcp
 import os
+import contextlib
 
-# Create FastAPI app
-app = FastAPI()
+# Create a combined lifespan to manage all session managers
+@contextlib.asynccontextmanager
+async def lifespan(app: FastAPI):
+    async with contextlib.AsyncExitStack() as stack:
+        # Initialize all session managers
+        await stack.enter_async_context(fireflies_mcp.session_manager.run())
+        await stack.enter_async_context(github_mcp.session_manager.run())
+        await stack.enter_async_context(prd_mcp.session_manager.run())
+        await stack.enter_async_context(vimeo_mcp.session_manager.run())
+        await stack.enter_async_context(mailgun_mcp.session_manager.run())
+        yield
+
+# Create FastAPI app with lifespan
+app = FastAPI(lifespan=lifespan)
 
 # Add a health check endpoint
 @app.get("/health")
 async def health_check():
     return {"status": "healthy", "message": "MCP Hub is running"}
 
-# Mount the MCP servers with proxy mounting to ensure proper lifespan execution
-app.mount("/fireflies", fireflies_mcp.streamable_http_app(as_proxy=True))
-app.mount("/github", github_mcp.streamable_http_app(as_proxy=True))
-app.mount("/prd", prd_mcp.streamable_http_app(as_proxy=True))
-app.mount("/vimeo", vimeo_mcp.streamable_http_app(as_proxy=True))
-app.mount("/mailgun", mailgun_mcp.streamable_http_app(as_proxy=True))
+# Mount the MCP servers
+app.mount("/fireflies", fireflies_mcp.streamable_http_app())
+app.mount("/github", github_mcp.streamable_http_app())
+app.mount("/prd", prd_mcp.streamable_http_app())
+app.mount("/vimeo", vimeo_mcp.streamable_http_app())
+app.mount("/mailgun", mailgun_mcp.streamable_http_app())
 
 PORT = int(os.environ.get("PORT", 8000))
 
