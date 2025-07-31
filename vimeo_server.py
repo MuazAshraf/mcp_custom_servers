@@ -15,11 +15,8 @@ mcp = FastMCP("VimeoServer", stateless_http=True)
 
 # Vimeo configuration
 # Use VIMEO_API_KEY for clarity - this should be your Vimeo personal access token
-VIMEO_API_KEY = os.getenv("VIMEO_API_KEY")
 ACCESS_TOKEN = os.getenv("ACCESS_TOKEN")
 
-if not VIMEO_API_KEY:
-    raise ValueError("VIMEO_API_KEY environment variable is required")
 
 VIMEO_API_BASE = "https://api.vimeo.com"
 

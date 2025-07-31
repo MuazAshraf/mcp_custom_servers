@@ -31,7 +31,7 @@ logger = logging.getLogger("github-mcp-server")
 # GitHub configuration
 GITHUB_TOKEN = os.getenv("GITHUB_TOKEN")
 if not GITHUB_TOKEN:
-    raise ValueError("GITHUB_TOKEN environment variable is required")
+    logger.warning("GITHUB_TOKEN environment variable is not set - GitHub API calls will fail")
 OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
 
 # Create FastMCP server with stateless HTTP for FastAPI mounting
