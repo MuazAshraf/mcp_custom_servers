@@ -132,14 +132,17 @@ async def get_prd_type_id_by_name(type_name: str) -> str:
 
 async def make_api_request(method: str, endpoint: str, data: Optional[Dict] = None) -> Dict:
     """Make HTTP request to dashboard API with API key"""
+    # Get API key from environment (supports both .env file and runtime updates)
+    api_key = os.environ.get('DASHBOARD_API_KEY') or DASHBOARD_API_KEY
+    
     # Validate API key before making request
-    if not DASHBOARD_API_KEY:
+    if not api_key:
         raise ValueError("DASHBOARD_API_KEY environment variable is required. Please set it using set_dashboard_config or in your environment.")
     
     headers = {
         "Content-Type": "application/json",
         "User-Agent": "Dashboard-MCP-Server",
-        "Authorization": f"ApiKey {DASHBOARD_API_KEY}",
+        "Authorization": f"ApiKey {api_key}",
         "Referer": os.environ.get('DASHBOARD_REFERER_URL', 'https://staging.exitmvp.com')
     }
     
