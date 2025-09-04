@@ -5,7 +5,7 @@ from prd_server import mcp as prd_mcp
 from vimeo_server import mcp as vimeo_mcp
 from mailgun_server import mcp as mailgun_mcp
 from dashboard_server import mcp as dashboard
-from dashboard_server_auth import mcp as dashboard_auth
+
 import os
 import contextlib
 
@@ -20,7 +20,6 @@ async def lifespan(app: FastAPI):
         await stack.enter_async_context(vimeo_mcp.session_manager.run())
         await stack.enter_async_context(mailgun_mcp.session_manager.run())
         await stack.enter_async_context(dashboard.session_manager.run())
-        await stack.enter_async_context(dashboard_auth.session_manager.run())
         yield
 
 # Create FastAPI app with lifespan
@@ -38,7 +37,7 @@ app.mount("/prd", prd_mcp.streamable_http_app())
 app.mount("/vimeo", vimeo_mcp.streamable_http_app())
 app.mount("/mailgun", mailgun_mcp.streamable_http_app())
 app.mount("/dashboard", dashboard.streamable_http_app())
-app.mount("/dashboard-auth", dashboard_auth.streamable_http_app())
+
 
 PORT = int(os.environ.get("PORT", 8000))
 
