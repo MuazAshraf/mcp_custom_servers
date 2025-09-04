@@ -27,10 +27,6 @@ DASHBOARD_BASE_URL = os.getenv("DASHBOARD_BASE_URL", "https://staging.exitmvp.co
 DASHBOARD_API_KEY = os.getenv("DASHBOARD_API_KEY")
 DASHBOARD_REFERER_URL = os.getenv("DASHBOARD_REFERER_URL", "https://dev.mojomosaic.com/")
 
-# Validate required environment variables
-if not DASHBOARD_API_KEY:
-    raise ValueError("DASHBOARD_API_KEY environment variable is required. Please set it in your .env file or environment.")
-
 # Create FastMCP server with stateless HTTP for FastAPI mounting
 mcp = FastMCP("dashboard", stateless_http=True)
 
@@ -136,6 +132,10 @@ async def get_prd_type_id_by_name(type_name: str) -> str:
 
 async def make_api_request(method: str, endpoint: str, data: Optional[Dict] = None) -> Dict:
     """Make HTTP request to dashboard API with API key"""
+    # Validate API key before making request
+    if not DASHBOARD_API_KEY:
+        raise ValueError("DASHBOARD_API_KEY environment variable is required. Please set it using set_dashboard_config or in your environment.")
+    
     headers = {
         "Content-Type": "application/json",
         "User-Agent": "Dashboard-MCP-Server",
