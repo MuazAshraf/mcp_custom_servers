@@ -42,14 +42,46 @@ async def get_org_id_by_name(org_name: str) -> str:
     except Exception as e:
         raise Exception(f"Could not find organization '{org_name}': {str(e)}")
 
-async def get_experience_id_by_name(experience_name: str) -> str:
-    """Get experience ID by name"""
+async def get_experience_id_by_name(experience_name: str, org_name: str = None, is_global: bool = None) -> str:
+    """Get experience ID by name, optionally filtered by organization or global status"""
     try:
-        experiences = await make_api_request("GET", "/experiences/")
-        if "results" in experiences:
-            for exp in experiences["results"]:
+        # Build the endpoint with optional filters
+        endpoint = "/experiences/"
+        if org_name:
+            org_id = await get_org_id_by_name(org_name)
+            endpoint = f"/experiences/?organization={org_id}"
+        elif is_global is not None:
+            endpoint = f"/experiences/?is_global={str(is_global).lower()}"
+        
+        experiences = await make_api_request("GET", endpoint)
+        
+        # Handle both list and dict responses
+        if isinstance(experiences, list):
+            exp_list = experiences
+        elif isinstance(experiences, dict) and "results" in experiences:
+            exp_list = experiences["results"]
+        else:
+            exp_list = []
+        
+        # Search in the list
+        for exp in exp_list:
+            if exp["name"].lower() == experience_name.lower():
+                return exp["id"]
+        
+        # If not found with filters, try without filters as fallback
+        if is_global is not None or org_name:
+            all_experiences = await make_api_request("GET", "/experiences/")
+            if isinstance(all_experiences, list):
+                all_exp_list = all_experiences
+            elif isinstance(all_experiences, dict) and "results" in all_experiences:
+                all_exp_list = all_experiences["results"]
+            else:
+                all_exp_list = []
+            
+            for exp in all_exp_list:
                 if exp["name"].lower() == experience_name.lower():
                     return exp["id"]
+        
         raise Exception(f"Experience '{experience_name}' not found")
     except Exception as e:
         raise Exception(f"Could not find experience '{experience_name}': {str(e)}")
@@ -411,21 +443,169 @@ async def get_experience_by_name(experience_name: str) -> str:
         return json.dumps({"error": str(e)}, indent=2)
     
 @mcp.tool()
-async def update_experience_by_name(experience_name: str, description: str = "", instructions: str = "") -> str:
-    """Update an experience by name"""
+async def update_global_experience(experience_name: str, new_name: str = "", description: str = "", 
+                                 instructions: str = "", tool_names: str = "", prompt_names: str = "") -> str:
+    """Update a global experience with complete control over all properties
+    
+    Args:
+        experience_name: Current name of the experience to update
+        new_name: New name for the experience (optional)
+        description: New description (optional)
+        instructions: New instructions (optional)
+        tool_names: Comma-separated tool names to add (optional, e.g. 'Tool1,Tool2')
+                   Use 'REMOVE_ALL' to remove all tools
+        prompt_names: Comma-separated prompt names to add (optional, e.g. 'Prompt1,Prompt2')
+                     Use 'REMOVE_ALL' to remove all prompts
+    """
     try:
-        exp_id = await get_experience_id_by_name(experience_name)
-        data = {}
+        # Get experience ID by name (global experience)
+        exp_id = await get_experience_id_by_name(experience_name, is_global=True)
+        
+        # Update basic properties
+        data = {"is_global": True}  # Explicitly set as global
+        if new_name:
+            data["name"] = new_name
         if description:
             data["description"] = description
         if instructions:
             data["instructions"] = instructions
-        response = await make_api_request("PATCH", f"/experiences/{exp_id}/", data=data)
-        return json.dumps({
-            "experience_name": experience_name,
-            "updated": response,
-            "message": f"Updated experience '{experience_name}'"
-        }, indent=2)
+            
+        if data:
+            response = await make_api_request("PATCH", f"/experiences/{exp_id}/", data=data)
+        
+        results = {"experience_name": experience_name, "updates": []}
+        
+        # Handle tools
+        if tool_names:
+            if tool_names.strip() == "REMOVE_ALL":
+                # Remove all tools
+                tools_response = await make_api_request("GET", f"/experiences/{exp_id}/tools/")
+                if "results" in tools_response:
+                    for tool in tools_response["results"]:
+                        await make_api_request("DELETE", f"/experiences/{exp_id}/remove_tool/", {"tool_id": tool["id"]})
+                results["updates"].append("Removed all tools")
+            else:
+                # Add new tools
+                for tool_name in tool_names.split(","):
+                    tool_name = tool_name.strip()
+                    if tool_name:
+                        try:
+                            tool_id = await get_tool_id_by_name(tool_name)
+                            await make_api_request("POST", f"/experiences/{exp_id}/add_tool/", {"tool_id": tool_id})
+                            results["updates"].append(f"Added tool '{tool_name}'")
+                        except Exception as e:
+                            results["updates"].append(f"Failed to add tool '{tool_name}': {str(e)}")
+        
+        # Handle prompts
+        if prompt_names:
+            if prompt_names.strip() == "REMOVE_ALL":
+                # Remove all prompts
+                prompts_response = await make_api_request("GET", f"/experiences/{exp_id}/prompts/")
+                if "results" in prompts_response:
+                    for prompt in prompts_response["results"]:
+                        await make_api_request("DELETE", f"/experiences/{exp_id}/remove_prompt/", {"prompt_id": prompt["id"]})
+                results["updates"].append("Removed all prompts")
+            else:
+                # Add new prompts
+                for i, prompt_name in enumerate(prompt_names.split(","), 1):
+                    prompt_name = prompt_name.strip()
+                    if prompt_name:
+                        try:
+                            prompt_id = await get_prompt_id_by_name(prompt_name)
+                            await make_api_request("POST", f"/experiences/{exp_id}/add_prompt/", {
+                                "prompt_id": prompt_id, "order": i, "is_hidden": False
+                            })
+                            results["updates"].append(f"Added prompt '{prompt_name}'")
+                        except Exception as e:
+                            results["updates"].append(f"Failed to add prompt '{prompt_name}': {str(e)}")
+        
+        return json.dumps(results, indent=2)
+    except Exception as e:
+        return json.dumps({"error": str(e)}, indent=2)
+
+@mcp.tool()
+async def update_organization_experience(org_name: str, experience_name: str, new_name: str = "", 
+                                       description: str = "", instructions: str = "", 
+                                       tool_names: str = "", prompt_names: str = "") -> str:
+    """Update an organization experience with complete control over all properties
+    
+    Args:
+        org_name: Organization name (e.g. 'BrainFreeze')
+        experience_name: Current name of the experience to update
+        new_name: New name for the experience (optional)
+        description: New description (optional)
+        instructions: New instructions (optional)
+        tool_names: Comma-separated tool names to add (optional, e.g. 'Tool1,Tool2')
+                   Use 'REMOVE_ALL' to remove all tools
+        prompt_names: Comma-separated prompt names to add (optional, e.g. 'Prompt1,Prompt2')
+                     Use 'REMOVE_ALL' to remove all prompts
+    """
+    try:
+        # Get organization ID
+        org_id = await get_org_id_by_name(org_name)
+        
+        # Get experience ID by name within organization
+        exp_id = await get_experience_id_by_name(experience_name, org_name=org_name)
+        
+        # Update basic properties
+        data = {"is_global": False}  # Explicitly set as organization-specific
+        if new_name:
+            data["name"] = new_name
+        if description:
+            data["description"] = description
+        if instructions:
+            data["instructions"] = instructions
+            
+        if data:
+            response = await make_api_request("PATCH", f"/experiences/{exp_id}/", data=data)
+        
+        results = {"organization": org_name, "experience_name": experience_name, "updates": []}
+        
+        # Handle tools
+        if tool_names:
+            if tool_names.strip() == "REMOVE_ALL":
+                # Remove all tools
+                tools_response = await make_api_request("GET", f"/experiences/{exp_id}/tools/")
+                if "results" in tools_response:
+                    for tool in tools_response["results"]:
+                        await make_api_request("DELETE", f"/experiences/{exp_id}/remove_tool/", {"tool_id": tool["id"]})
+                results["updates"].append("Removed all tools")
+            else:
+                # Add new tools
+                for tool_name in tool_names.split(","):
+                    tool_name = tool_name.strip()
+                    if tool_name:
+                        try:
+                            tool_id = await get_tool_id_by_name(tool_name, org_name)
+                            await make_api_request("POST", f"/experiences/{exp_id}/add_tool/", {"tool_id": tool_id})
+                            results["updates"].append(f"Added tool '{tool_name}'")
+                        except Exception as e:
+                            results["updates"].append(f"Failed to add tool '{tool_name}': {str(e)}")
+        
+        # Handle prompts
+        if prompt_names:
+            if prompt_names.strip() == "REMOVE_ALL":
+                # Remove all prompts
+                prompts_response = await make_api_request("GET", f"/experiences/{exp_id}/prompts/")
+                if "results" in prompts_response:
+                    for prompt in prompts_response["results"]:
+                        await make_api_request("DELETE", f"/experiences/{exp_id}/remove_prompt/", {"prompt_id": prompt["id"]})
+                results["updates"].append("Removed all prompts")
+            else:
+                # Add new prompts
+                for i, prompt_name in enumerate(prompt_names.split(","), 1):
+                    prompt_name = prompt_name.strip()
+                    if prompt_name:
+                        try:
+                            prompt_id = await get_prompt_id_by_name(prompt_name, org_name)
+                            await make_api_request("POST", f"/experiences/{exp_id}/add_prompt/", {
+                                "prompt_id": prompt_id, "order": i, "is_hidden": False
+                            })
+                            results["updates"].append(f"Added prompt '{prompt_name}'")
+                        except Exception as e:
+                            results["updates"].append(f"Failed to add prompt '{prompt_name}': {str(e)}")
+        
+        return json.dumps(results, indent=2)
     except Exception as e:
         return json.dumps({"error": str(e)}, indent=2)
     
