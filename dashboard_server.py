@@ -23,9 +23,13 @@ logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger("dashboard-mcp-server-token")
 
 # Dashboard configuration
-DASHBOARD_BASE_URL = os.getenv("DASHBOARD_BASE_URL") 
+DASHBOARD_BASE_URL = os.getenv("DASHBOARD_BASE_URL", "https://staging.exitmvp.com/api/v1")
 DASHBOARD_API_KEY = os.getenv("DASHBOARD_API_KEY")
-DASHBOARD_REFERER_URL = os.getenv("DASHBOARD_REFERER_URL", "https://staging.exitmvp.com")
+DASHBOARD_REFERER_URL = os.getenv("DASHBOARD_REFERER_URL", "https://dev.mojomosaic.com/")
+
+# Validate required environment variables
+if not DASHBOARD_API_KEY:
+    raise ValueError("DASHBOARD_API_KEY environment variable is required. Please set it in your .env file or environment.")
 
 # Create FastMCP server with stateless HTTP for FastAPI mounting
 mcp = FastMCP("dashboard", stateless_http=True)
