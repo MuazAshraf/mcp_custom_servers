@@ -165,6 +165,48 @@ async def create_pull_request(owner: str, repo: str, title: str, head: str, base
     return json.dumps(result, indent=2)
 
 @mcp.tool()
+async def list_pull_requests(owner: str, repo: str, state: str = "open", sort: str = "created", direction: str = "desc") -> str:
+    """List pull requests in a repository
+
+    Args:
+        owner: Repository owner
+        repo: Repository name
+        state: State of PRs (open, closed, all)
+        sort: Sort field (created, updated, popularity, long-running)
+        direction: Sort direction (asc, desc)
+    """
+    endpoint = f"/repos/{owner}/{repo}/pulls?state={state}&sort={sort}&direction={direction}"
+
+    pulls = await github_request("GET", endpoint)
+
+    result = {
+        "total_count": len(pulls),
+        "pull_requests": [
+            {
+                "number": pr["number"],
+                "title": pr["title"],
+                "body": pr["body"][:200] + "..." if pr["body"] and len(pr["body"]) > 200 else pr["body"],
+                "state": pr["state"],
+                "user": pr["user"]["login"],
+                "head": pr["head"]["ref"],
+                "base": pr["base"]["ref"],
+                "created_at": pr["created_at"],
+                "updated_at": pr["updated_at"],
+                "merged": pr.get("merged", False),
+                "mergeable": pr.get("mergeable"),
+                "html_url": pr["html_url"],
+                "comments": pr.get("comments", 0),
+                "commits": pr.get("commits", 0),
+                "additions": pr.get("additions", 0),
+                "deletions": pr.get("deletions", 0)
+            }
+            for pr in pulls[:20]  # Limit to 20 for readability
+        ]
+    }
+
+    return json.dumps(result, indent=2)
+
+@mcp.tool()
 async def upload_file(owner: str, repo: str, path: str, content: str, message: str, branch: str = "main") -> str:
     """Upload or update a file in repository"""
     # Check if file exists to get SHA for update
@@ -173,16 +215,16 @@ async def upload_file(owner: str, repo: str, path: str, content: str, message: s
         sha = existing["sha"]
     except:
         sha = None
-    
+
     data = {
         "message": message,
         "content": base64.b64encode(content.encode()).decode(),
         "branch": branch
     }
-    
+
     if sha:
         data["sha"] = sha
-    
+
     result = await github_request("PUT", f"/repos/{owner}/{repo}/contents/{path}", data)
     return json.dumps(result, indent=2)
 
