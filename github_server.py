@@ -30,6 +30,7 @@ logger = logging.getLogger("github-mcp-server")
 
 # GitHub configuration
 GITHUB_TOKEN = os.getenv("GITHUB_TOKEN")
+print(GITHUB_TOKEN)
 if not GITHUB_TOKEN:
     logger.warning("GITHUB_TOKEN environment variable is not set - GitHub API calls will fail")
 OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
@@ -48,23 +49,28 @@ async def github_request(method: str, endpoint: str, data: Optional[Dict] = None
         "Accept": "application/vnd.github.v3+json",
         "User-Agent": "GitHub-MCP-Server"
     }
-    
+
     url = f"https://api.github.com/{endpoint.lstrip('/')}"
-    
+
     # Create SSL context that's more permissive
     ssl_context = ssl.create_default_context()
     ssl_context.check_hostname = False
     ssl_context.verify_mode = ssl.CERT_NONE
-    
+
     connector = aiohttp.TCPConnector(ssl=ssl_context)
-    
+
     async with aiohttp.ClientSession(connector=connector) as session:
         async with session.request(method, url, headers=headers, json=data) as response:
             if response.status >= 400:
                 error_text = await response.text()
                 raise Exception(f"GitHub API error {response.status}: {error_text}")
-            
+
             return await response.json()
+
+async def get_authenticated_user() -> str:
+    """Get the authenticated user's login name"""
+    user_info = await github_request("GET", "/user")
+    return user_info["login"]
 
 @mcp.tool()
 async def create_repository(name: str, description: str = "", private: bool = False, auto_init: bool = True) -> str:
@@ -80,15 +86,16 @@ async def create_repository(name: str, description: str = "", private: bool = Fa
     return json.dumps(result, indent=2)
 
 @mcp.tool()
-async def list_repositories(username: str = "", repo_type: str = "owner") -> str:
-    """List user repositories"""
-    if username:
-        endpoint = f"/users/{username}/repos"
-    else:
-        endpoint = f"/user/repos?type={repo_type}"
-    
+async def list_repositories(repo_type: str = "owner") -> str:
+    """List user repositories
+
+    Args:
+        repo_type: Type of repos to list (owner, public, private, member)
+    """
+    endpoint = f"/user/repos?type={repo_type}"
+
     repos = await github_request("GET", endpoint)
-    
+
     result = {
         "total_count": len(repos),
         "repositories": [
@@ -106,33 +113,50 @@ async def list_repositories(username: str = "", repo_type: str = "owner") -> str
             for repo in repos[:20]  # Limit to 20 for readability
         ]
     }
-    
+
     return json.dumps(result, indent=2)
 
 @mcp.tool()
-async def create_issue(owner: str, repo: str, title: str, body: str = "", labels: List[str] = None) -> str:
-    """Create an issue in a repository"""
+async def create_issue(repo: str, title: str, body: str = "", labels: List[str] = None) -> str:
+    """Create an issue in a repository
+
+    Args:
+        repo: Repository name
+        title: Issue title
+        body: Issue body
+        labels: List of labels
+    """
+    owner = await get_authenticated_user()
+
     if labels is None:
         labels = []
-        
+
     data = {
         "title": title,
         "body": body,
         "labels": labels
     }
-    
+
     result = await github_request("POST", f"/repos/{owner}/{repo}/issues", data)
     return json.dumps(result, indent=2)
 
 @mcp.tool()
-async def list_issues(owner: str, repo: str, state: str = "open", labels: str = "") -> str:
-    """List repository issues"""
+async def list_issues(repo: str, state: str = "open", labels: str = "") -> str:
+    """List repository issues
+
+    Args:
+        repo: Repository name
+        state: State of issues (open, closed, all)
+        labels: Comma-separated label filter
+    """
+    owner = await get_authenticated_user()
+
     endpoint = f"/repos/{owner}/{repo}/issues?state={state}"
     if labels:
         endpoint += f"&labels={labels}"
-    
+
     issues = await github_request("GET", endpoint)
-    
+
     result = {
         "total_count": len(issues),
         "issues": [
@@ -148,33 +172,44 @@ async def list_issues(owner: str, repo: str, state: str = "open", labels: str = 
             for issue in issues[:10]
         ]
     }
-    
+
     return json.dumps(result, indent=2)
 
 @mcp.tool()
-async def create_pull_request(owner: str, repo: str, title: str, head: str, base: str = "main", body: str = "") -> str:
-    """Create a pull request"""
+async def create_pull_request(repo: str, title: str, head: str, base: str = "main", body: str = "") -> str:
+    """Create a pull request
+
+    Args:
+        repo: Repository name
+        title: Pull request title
+        head: Branch name containing your changes (e.g., 'feature-branch')
+        base: Base branch to merge into (default: main)
+        body: Pull request description
+    """
+    owner = await get_authenticated_user()
+
     data = {
         "title": title,
         "body": body,
         "head": head,
         "base": base
     }
-    
+
     result = await github_request("POST", f"/repos/{owner}/{repo}/pulls", data)
     return json.dumps(result, indent=2)
 
 @mcp.tool()
-async def list_pull_requests(owner: str, repo: str, state: str = "open", sort: str = "created", direction: str = "desc") -> str:
+async def list_pull_requests(repo: str, state: str = "open", sort: str = "created", direction: str = "desc") -> str:
     """List pull requests in a repository
 
     Args:
-        owner: Repository owner
         repo: Repository name
         state: State of PRs (open, closed, all)
         sort: Sort field (created, updated, popularity, long-running)
         direction: Sort direction (asc, desc)
     """
+    owner = await get_authenticated_user()
+
     endpoint = f"/repos/{owner}/{repo}/pulls?state={state}&sort={sort}&direction={direction}"
 
     pulls = await github_request("GET", endpoint)
@@ -207,8 +242,18 @@ async def list_pull_requests(owner: str, repo: str, state: str = "open", sort: s
     return json.dumps(result, indent=2)
 
 @mcp.tool()
-async def upload_file(owner: str, repo: str, path: str, content: str, message: str, branch: str = "main") -> str:
-    """Upload or update a file in repository"""
+async def upload_file(repo: str, path: str, content: str, message: str, branch: str = "main") -> str:
+    """Upload or update a file in repository
+
+    Args:
+        repo: Repository name
+        path: File path in repository
+        content: File content
+        message: Commit message
+        branch: Branch name (default: main)
+    """
+    owner = await get_authenticated_user()
+
     # Check if file exists to get SHA for update
     try:
         existing = await github_request("GET", f"/repos/{owner}/{repo}/contents/{path}?ref={branch}")
@@ -274,10 +319,17 @@ async def get_recent_repositories() -> str:
     return json.dumps({"repositories": repos}, indent=2)
 
 @mcp.tool()
-async def get_issue_comments(owner: str, repo: str, issue_number: int) -> str:
-    """Get all comments for a specific issue"""
+async def get_issue_comments(repo: str, issue_number: int) -> str:
+    """Get all comments for a specific issue
+
+    Args:
+        repo: Repository name
+        issue_number: Issue number
+    """
+    owner = await get_authenticated_user()
+
     comments = await github_request("GET", f"/repos/{owner}/{repo}/issues/{issue_number}/comments")
-    
+
     result = {
         "issue_number": issue_number,
         "total_comments": len(comments),
@@ -293,25 +345,40 @@ async def get_issue_comments(owner: str, repo: str, issue_number: int) -> str:
             for comment in comments
         ]
     }
-    
+
     return json.dumps(result, indent=2)
 
 @mcp.tool()
-async def create_issue_comment(owner: str, repo: str, issue_number: int, body: str) -> str:
-    """Add a comment to an issue"""
+async def create_issue_comment(repo: str, issue_number: int, body: str) -> str:
+    """Add a comment to an issue
+
+    Args:
+        repo: Repository name
+        issue_number: Issue number
+        body: Comment body
+    """
+    owner = await get_authenticated_user()
+
     data = {
         "body": body
     }
-    
+
     result = await github_request("POST", f"/repos/{owner}/{repo}/issues/{issue_number}/comments", data)
     return json.dumps(result, indent=2)
 
 @mcp.tool()
-async def get_issue_details(owner: str, repo: str, issue_number: int) -> str:
-    """Get detailed information about a specific issue including comments count"""
+async def get_issue_details(repo: str, issue_number: int) -> str:
+    """Get detailed information about a specific issue including comments count
+
+    Args:
+        repo: Repository name
+        issue_number: Issue number
+    """
+    owner = await get_authenticated_user()
+
     try:
         issue = await github_request("GET", f"/repos/{owner}/{repo}/issues/{issue_number}")
-        
+
         result = {
             "number": issue["number"],
             "title": issue["title"],
@@ -325,9 +392,9 @@ async def get_issue_details(owner: str, repo: str, issue_number: int) -> str:
             "updated_at": issue["updated_at"],
             "html_url": issue["html_url"]
         }
-        
+
         return json.dumps(result, indent=2)
-        
+
     except Exception as e:
         logger.error(f"Error getting issue details: {e}")
         return json.dumps({
@@ -336,9 +403,14 @@ async def get_issue_details(owner: str, repo: str, issue_number: int) -> str:
         }, indent=2)
 
 @mcp.tool()
-async def respond_to_help_request(owner: str, repo: str) -> str:
-    """Auto-respond to latest /help comment in any issue"""
-    
+async def respond_to_help_request(repo: str) -> str:
+    """Auto-respond to latest /help comment in any issue
+
+    Args:
+        repo: Repository name
+    """
+    owner = await get_authenticated_user()
+
     try:
         # Get all open issues
         issues = await github_request("GET", f"/repos/{owner}/{repo}/issues?state=open&per_page=20")
