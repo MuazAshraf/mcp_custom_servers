@@ -34,6 +34,7 @@ print(GITHUB_TOKEN)
 if not GITHUB_TOKEN:
     logger.warning("GITHUB_TOKEN environment variable is not set - GitHub API calls will fail")
 OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
+GITHUB_ORG = os.getenv("GITHUB_ORG", "Mojo-Solo")  # Default organization
 
 # Create FastMCP server with stateless HTTP for FastAPI mounting
 mcp = FastMCP("github-mcp", stateless_http=True)
@@ -86,18 +87,33 @@ async def create_repository(name: str, description: str = "", private: bool = Fa
     return json.dumps(result, indent=2)
 
 @mcp.tool()
-async def list_repositories(repo_type: str = "owner") -> str:
+async def list_repositories(repo_type: str = "all", per_page: int = 100) -> str:
     """List user repositories
 
     Args:
-        repo_type: Type of repos to list (owner, public, private, member)
+        repo_type: Type of repos to list (owner, public, private, member, all)
+        per_page: Number of repos per page (max 100, default 100)
     """
-    endpoint = f"/user/repos?type={repo_type}"
+    all_repos = []
+    page = 1
 
-    repos = await github_request("GET", endpoint)
+    while True:
+        endpoint = f"/user/repos?type={repo_type}&per_page={per_page}&page={page}"
+        repos = await github_request("GET", endpoint)
+
+        if not repos:
+            break
+
+        all_repos.extend(repos)
+
+        # If we got fewer repos than requested, we've reached the end
+        if len(repos) < per_page:
+            break
+
+        page += 1
 
     result = {
-        "total_count": len(repos),
+        "total_count": len(all_repos),
         "repositories": [
             {
                 "name": repo["name"],
@@ -108,9 +124,10 @@ async def list_repositories(repo_type: str = "owner") -> str:
                 "created_at": repo["created_at"],
                 "updated_at": repo["updated_at"],
                 "language": repo["language"],
-                "stargazers_count": repo["stargazers_count"]
+                "stargazers_count": repo["stargazers_count"],
+                "owner": repo["owner"]["login"]
             }
-            for repo in repos[:20]  # Limit to 20 for readability
+            for repo in all_repos
         ]
     }
 
@@ -121,12 +138,17 @@ async def create_issue(repo: str, title: str, body: str = "", labels: List[str] 
     """Create an issue in a repository
 
     Args:
-        repo: Repository name
+        repo: Repository name or full name (e.g., 'my-repo' or 'owner/my-repo')
         title: Issue title
         body: Issue body
         labels: List of labels
     """
-    owner = await get_authenticated_user()
+    # Check if repo contains owner/repo format
+    if "/" in repo:
+        owner, repo_name = repo.split("/", 1)
+    else:
+        owner = GITHUB_ORG
+        repo_name = repo
 
     if labels is None:
         labels = []
@@ -137,7 +159,7 @@ async def create_issue(repo: str, title: str, body: str = "", labels: List[str] 
         "labels": labels
     }
 
-    result = await github_request("POST", f"/repos/{owner}/{repo}/issues", data)
+    result = await github_request("POST", f"/repos/{owner}/{repo_name}/issues", data)
     return json.dumps(result, indent=2)
 
 @mcp.tool()
@@ -145,13 +167,18 @@ async def list_issues(repo: str, state: str = "open", labels: str = "") -> str:
     """List repository issues
 
     Args:
-        repo: Repository name
+        repo: Repository name or full name (e.g., 'my-repo' or 'owner/my-repo')
         state: State of issues (open, closed, all)
         labels: Comma-separated label filter
     """
-    owner = await get_authenticated_user()
+    # Check if repo contains owner/repo format
+    if "/" in repo:
+        owner, repo_name = repo.split("/", 1)
+    else:
+        owner = GITHUB_ORG
+        repo_name = repo
 
-    endpoint = f"/repos/{owner}/{repo}/issues?state={state}"
+    endpoint = f"/repos/{owner}/{repo_name}/issues?state={state}"
     if labels:
         endpoint += f"&labels={labels}"
 
@@ -163,7 +190,7 @@ async def list_issues(repo: str, state: str = "open", labels: str = "") -> str:
             {
                 "number": issue["number"],
                 "title": issue["title"],
-                "body": issue["body"][:200] + "..." if len(issue["body"]) > 200 else issue["body"],
+                "body": (issue["body"] or "")[:200] + "..." if issue["body"] and len(issue["body"]) > 200 else (issue["body"] or ""),
                 "state": issue["state"],
                 "user": issue["user"]["login"],
                 "created_at": issue["created_at"],
@@ -180,13 +207,18 @@ async def create_pull_request(repo: str, title: str, head: str, base: str = "mai
     """Create a pull request
 
     Args:
-        repo: Repository name
+        repo: Repository name or full name (e.g., 'my-repo' or 'owner/my-repo')
         title: Pull request title
         head: Branch name containing your changes (e.g., 'feature-branch')
         base: Base branch to merge into (default: main)
         body: Pull request description
     """
-    owner = await get_authenticated_user()
+    # Check if repo contains owner/repo format
+    if "/" in repo:
+        owner, repo_name = repo.split("/", 1)
+    else:
+        owner = GITHUB_ORG
+        repo_name = repo
 
     data = {
         "title": title,
@@ -195,7 +227,7 @@ async def create_pull_request(repo: str, title: str, head: str, base: str = "mai
         "base": base
     }
 
-    result = await github_request("POST", f"/repos/{owner}/{repo}/pulls", data)
+    result = await github_request("POST", f"/repos/{owner}/{repo_name}/pulls", data)
     return json.dumps(result, indent=2)
 
 @mcp.tool()
@@ -203,14 +235,19 @@ async def list_pull_requests(repo: str, state: str = "open", sort: str = "create
     """List pull requests in a repository
 
     Args:
-        repo: Repository name
+        repo: Repository name or full name (e.g., 'my-repo' or 'owner/my-repo')
         state: State of PRs (open, closed, all)
         sort: Sort field (created, updated, popularity, long-running)
         direction: Sort direction (asc, desc)
     """
-    owner = await get_authenticated_user()
+    # Check if repo contains owner/repo format
+    if "/" in repo:
+        owner, repo_name = repo.split("/", 1)
+    else:
+        owner = GITHUB_ORG
+        repo_name = repo
 
-    endpoint = f"/repos/{owner}/{repo}/pulls?state={state}&sort={sort}&direction={direction}"
+    endpoint = f"/repos/{owner}/{repo_name}/pulls?state={state}&sort={sort}&direction={direction}"
 
     pulls = await github_request("GET", endpoint)
 
@@ -246,17 +283,22 @@ async def upload_file(repo: str, path: str, content: str, message: str, branch: 
     """Upload or update a file in repository
 
     Args:
-        repo: Repository name
+        repo: Repository name or full name (e.g., 'my-repo' or 'owner/my-repo')
         path: File path in repository
         content: File content
         message: Commit message
         branch: Branch name (default: main)
     """
-    owner = await get_authenticated_user()
+    # Check if repo contains owner/repo format
+    if "/" in repo:
+        owner, repo_name = repo.split("/", 1)
+    else:
+        owner = GITHUB_ORG
+        repo_name = repo
 
     # Check if file exists to get SHA for update
     try:
-        existing = await github_request("GET", f"/repos/{owner}/{repo}/contents/{path}?ref={branch}")
+        existing = await github_request("GET", f"/repos/{owner}/{repo_name}/contents/{path}?ref={branch}")
         sha = existing["sha"]
     except:
         sha = None
@@ -270,7 +312,7 @@ async def upload_file(repo: str, path: str, content: str, message: str, branch: 
     if sha:
         data["sha"] = sha
 
-    result = await github_request("PUT", f"/repos/{owner}/{repo}/contents/{path}", data)
+    result = await github_request("PUT", f"/repos/{owner}/{repo_name}/contents/{path}", data)
     return json.dumps(result, indent=2)
 
 @mcp.tool()
@@ -323,12 +365,17 @@ async def get_issue_comments(repo: str, issue_number: int) -> str:
     """Get all comments for a specific issue
 
     Args:
-        repo: Repository name
+        repo: Repository name or full name (e.g., 'my-repo' or 'owner/my-repo')
         issue_number: Issue number
     """
-    owner = await get_authenticated_user()
+    # Check if repo contains owner/repo format
+    if "/" in repo:
+        owner, repo_name = repo.split("/", 1)
+    else:
+        owner = GITHUB_ORG
+        repo_name = repo
 
-    comments = await github_request("GET", f"/repos/{owner}/{repo}/issues/{issue_number}/comments")
+    comments = await github_request("GET", f"/repos/{owner}/{repo_name}/issues/{issue_number}/comments")
 
     result = {
         "issue_number": issue_number,
@@ -353,17 +400,22 @@ async def create_issue_comment(repo: str, issue_number: int, body: str) -> str:
     """Add a comment to an issue
 
     Args:
-        repo: Repository name
+        repo: Repository name or full name (e.g., 'my-repo' or 'owner/my-repo')
         issue_number: Issue number
         body: Comment body
     """
-    owner = await get_authenticated_user()
+    # Check if repo contains owner/repo format
+    if "/" in repo:
+        owner, repo_name = repo.split("/", 1)
+    else:
+        owner = GITHUB_ORG
+        repo_name = repo
 
     data = {
         "body": body
     }
 
-    result = await github_request("POST", f"/repos/{owner}/{repo}/issues/{issue_number}/comments", data)
+    result = await github_request("POST", f"/repos/{owner}/{repo_name}/issues/{issue_number}/comments", data)
     return json.dumps(result, indent=2)
 
 @mcp.tool()
@@ -371,13 +423,18 @@ async def get_issue_details(repo: str, issue_number: int) -> str:
     """Get detailed information about a specific issue including comments count
 
     Args:
-        repo: Repository name
+        repo: Repository name or full name (e.g., 'my-repo' or 'owner/my-repo')
         issue_number: Issue number
     """
-    owner = await get_authenticated_user()
+    # Check if repo contains owner/repo format
+    if "/" in repo:
+        owner, repo_name = repo.split("/", 1)
+    else:
+        owner = GITHUB_ORG
+        repo_name = repo
 
     try:
-        issue = await github_request("GET", f"/repos/{owner}/{repo}/issues/{issue_number}")
+        issue = await github_request("GET", f"/repos/{owner}/{repo_name}/issues/{issue_number}")
 
         result = {
             "number": issue["number"],
@@ -398,7 +455,7 @@ async def get_issue_details(repo: str, issue_number: int) -> str:
     except Exception as e:
         logger.error(f"Error getting issue details: {e}")
         return json.dumps({
-            "error": f"Could not fetch issue #{issue_number} from {owner}/{repo}",
+            "error": f"Could not fetch issue #{issue_number} from {owner}/{repo_name}",
             "details": str(e)
         }, indent=2)
 
@@ -407,13 +464,18 @@ async def respond_to_help_request(repo: str) -> str:
     """Auto-respond to latest /help comment in any issue
 
     Args:
-        repo: Repository name
+        repo: Repository name or full name (e.g., 'my-repo' or 'owner/my-repo')
     """
-    owner = await get_authenticated_user()
+    # Check if repo contains owner/repo format
+    if "/" in repo:
+        owner, repo_name = repo.split("/", 1)
+    else:
+        owner = GITHUB_ORG
+        repo_name = repo
 
     try:
         # Get all open issues
-        issues = await github_request("GET", f"/repos/{owner}/{repo}/issues?state=open&per_page=20")
+        issues = await github_request("GET", f"/repos/{owner}/{repo_name}/issues?state=open&per_page=20")
         
         # Look for latest /help comment across all issues
         latest_help_comment = None
@@ -421,32 +483,32 @@ async def respond_to_help_request(repo: str) -> str:
         
         for issue in issues:
             # Get comments for this issue
-            comments = await github_request("GET", f"/repos/{owner}/{repo}/issues/{issue['number']}/comments")
-            
+            comments = await github_request("GET", f"/repos/{owner}/{repo_name}/issues/{issue['number']}/comments")
+
             # Check each comment for /help trigger
             for comment in reversed(comments):  # Start from latest
                 if "/help" in comment["body"].lower():
                     latest_help_comment = comment
                     target_issue = issue
                     break
-            
+
             if latest_help_comment:
                 break
-        
+
         if not latest_help_comment:
             return json.dumps({
                 "message": "No /help comments found in recent issues",
                 "suggestion": "Ask someone to comment '/help' in an issue"
             }, indent=2)
-        
+
         # Get repository context (codebase analysis)
-        repo_context = await _get_repository_context(owner, repo)
-        
+        repo_context = await _get_repository_context(owner, repo_name)
+
         # Generate AI response using OpenAI
         ai_response = await _generate_smart_help_response(
             target_issue, latest_help_comment, repo_context
         )
-        
+
         # Post response
         response_text = f"""🤖 **AI Assistant**
 
@@ -457,8 +519,8 @@ async def respond_to_help_request(repo: str) -> str:
 
 *AI-generated response. Verify code suggestions before use.*
 """
-        
-        result = await create_issue_comment(owner, repo, target_issue['number'], response_text)
+
+        result = await create_issue_comment(f"{owner}/{repo_name}", target_issue['number'], response_text)
         
         return json.dumps({
             "success": True,
@@ -472,7 +534,7 @@ async def respond_to_help_request(repo: str) -> str:
         logger.error(f"Error responding to help: {e}")
         return json.dumps({
             "error": f"Failed to respond: {str(e)}",
-            "repository": f"{owner}/{repo}"
+            "repository": f"{owner}/{repo_name}"
         }, indent=2)
 
 async def _generate_smart_help_response(issue: dict, help_comment: dict, repo_context: dict) -> str:
